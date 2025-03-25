@@ -6,9 +6,11 @@ package ssh
 
 import (
 	"bytes"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"strings"
 )
 
@@ -68,6 +70,7 @@ func (c *connection) clientAuthenticate(config *ClientConfig) error {
 	var lastMethods []string
 
 	sessionID := c.transport.getSessionID()
+	slog.Info("Got session id", "id", fmt.Sprintf("%x", sessionID))
 	for auth := AuthMethod(new(noneAuth)); auth != nil; {
 		ok, methods, err := auth.auth(sessionID, config.User, c.transport, config.Rand, extensions)
 		if err != nil {
@@ -346,48 +349,8 @@ func (cb publicKeyCallback) auth(session []byte, user string, c packetConn, rand
 		if !ok {
 			continue
 		}
-
-		pubKey := pub.Marshal()
-		data := buildDataSignedForAuth(session, userAuthRequestMsg{
-			User:    user,
-			Service: serviceSSH,
-			Method:  cb.method(),
-		}, algo, pubKey)
-		sign, err := as.SignWithAlgorithm(rand, data, underlyingAlgo(algo))
-		if err != nil {
-			return authFailure, nil, err
-		}
-
-		// manually wrap the serialized signature in a string
-		s := Marshal(sign)
-		sig := make([]byte, stringLength(len(s)))
-		marshalString(sig, s)
-		msg := publickeyAuthMsg{
-			User:     user,
-			Service:  serviceSSH,
-			Method:   cb.method(),
-			HasSig:   true,
-			Algoname: algo,
-			PubKey:   pubKey,
-			Sig:      sig,
-		}
-		p := Marshal(&msg)
-		if err := c.writePacket(p); err != nil {
-			return authFailure, nil, err
-		}
-		var success authResult
-		success, methods, err = handleAuthResponse(c)
-		if err != nil {
-			return authFailure, nil, err
-		}
-
-		// If authentication succeeds or the list of available methods does not
-		// contain the "publickey" method, do not attempt to authenticate with any
-		// other keys.  According to RFC 4252 Section 7, the latter can occur when
-		// additional authentication methods are required.
-		if success == authSuccess || !contains(methods, cb.method()) {
-			return success, methods, err
-		}
+		slog.Info("Server accepted key", "user", user, "pubkey", fmt.Sprintf("%v %v", algo, base64.RawStdEncoding.EncodeToString(pub.Marshal())))
+		continue
 	}
 
 	return authFailure, methods, errSigAlgo
