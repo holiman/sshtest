@@ -307,7 +307,6 @@ func (cb publicKeyCallback) auth(session []byte, user string, c packetConn, rand
 	// acceptable to the remote. If the key is acceptable, the client will
 	// attempt to authenticate with the valid key.  If not the client will repeat
 	// the process with the remaining keys.
-
 	signers, err := cb()
 	if err != nil {
 		return authFailure, nil, err
@@ -405,6 +404,7 @@ func confirmKeyAck(key PublicKey, c packetConn) (bool, error) {
 			}
 			return true, nil
 		case msgUserAuthFailure:
+			slog.Info("User not acceptable")
 			return false, nil
 		default:
 			return false, unexpectedMessageError(msgUserAuthPubKeyOk, packet[0])

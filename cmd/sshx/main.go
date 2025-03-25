@@ -22,9 +22,10 @@ func main() {
 		Action: testSsh,
 		Flags: []cli.Flag{
 			&cli.StringFlag{
-				Name:  "host",
-				Value: "127.0.0.1",
-				Usage: "Hostname or IP for the ssh server",
+				Name:     "host",
+				Value:    "127.0.0.1",
+				Usage:    "Hostname or IP for the ssh server",
+				Required: true,
 			},
 			&cli.StringFlag{
 				Name:  "port",
@@ -32,9 +33,10 @@ func main() {
 				Usage: "Ssh port",
 			},
 			&cli.StringFlag{
-				Name:  "keyfile",
-				Value: "",
-				Usage: "File containing public keys to attempt",
+				Name:     "keyfile",
+				Value:    "",
+				Usage:    "File containing public keys to attempt",
+				Required: true,
 			},
 		},
 	}
