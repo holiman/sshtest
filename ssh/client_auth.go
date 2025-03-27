@@ -70,7 +70,6 @@ func (c *connection) clientAuthenticate(config *ClientConfig) error {
 	var lastMethods []string
 
 	sessionID := c.transport.getSessionID()
-	slog.Info("Got session id", "id", fmt.Sprintf("%x", sessionID))
 	for auth := AuthMethod(new(noneAuth)); auth != nil; {
 		ok, methods, err := auth.auth(sessionID, config.User, c.transport, config.Rand, extensions)
 		if err != nil {
@@ -404,7 +403,7 @@ func confirmKeyAck(key PublicKey, c packetConn) (bool, error) {
 			}
 			return true, nil
 		case msgUserAuthFailure:
-			slog.Info("User not acceptable")
+			slog.Info("The user/key was rejected by the server")
 			return false, nil
 		default:
 			return false, unexpectedMessageError(msgUserAuthPubKeyOk, packet[0])
