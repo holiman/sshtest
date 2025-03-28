@@ -2,11 +2,14 @@
 
 #### Background 
 
-Have you noticed that when you ssh into a server, you only have to enter the key passphrase for the key 
-that is actually configured on that server? 
+Have you noticed that when you ssh into a server, you  have to enter the key passphrase _only_ for the key
+that is actually configured on that server, but not other keys?
 
-This repo is made as a little investigation into how ssh works. I was trying to see if it is possible 
-to figure out if a given public key can log in to a given ssh server. I did not find any existing
+This is possible because the client sends over a selection of keys (pubkeys), and the server
+informs the client which keys are acceptable. In consequence, it is possible to, given an ssh public key, figure
+out if the key is configured for access to the server.
+
+This repo is made as a little investigation into how this works. I did not find any existing
 easy way to do it via the standard linux `ssh` binary, so I instead implemented it in golang. 
 
 This repo is, essentially, a copy-pasta of the golang `x/crypto/ssh` package, with a lot of internals
@@ -17,13 +20,14 @@ gradually gutted out and removed.
 So, you can give it 
 
 - a file with public keys (on the same format as a `authorized_keys`-file).
-- a list of usernames, 
+- a set of usernames,
 - a host (and a port)
 
-It will now, 
-- For each username, 
-  - If the username is acceptable: check each pubkey
-    - Let you now if the username/pubkey combo is acceptable at the server. 
+It will now,
+
+- For each pubkey,
+   - For each username,
+     - Let you now if the username/pubkey combo is acceptable at the server.
 
 ### What does this mean
 
@@ -41,13 +45,10 @@ And one can then visit all the organization's public servers, and see who has ac
 This will probably bitrot, but here's how it looks right now
 
 ```
-$ go run ./cmd/sshx -host 192.168.197.219 -keyfile ./pubkeys.txt
-2025/03/25 21:49:19 INFO TCP connected addr=192.168.197.323:22
-2025/03/25 21:49:19 INFO Testing user=foobar pubkey="ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFKF5kDRXv4SWBYrk36i4iLRl2BZG3ESMQjMLsUpiHz5"
-2025/03/25 21:49:19 INFO User not acceptable
-
-$ go run ./cmd/sshx -host 192.168.197.219 -keyfile ./pubkeys.txt
-2025/03/25 21:49:38 INFO TCP connected addr=192.168.197.323:22
-2025/03/25 21:49:38 INFO Testing user=admin pubkey="ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFKF5kDRXv4SWBYrk36i4iLRl2BZG3ESMQjMLsUpiHz5"
-2025/03/25 21:49:38 INFO Server accepted key user=admin pubkey="ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFKF5kDRXv4SWBYrk36i4iLRl2BZG3ESMQjMLsUpiHz5"
+$ go run ./cmd/sshx -host 192.168.197.323 -keyfile ./pubkeys.txt --user root,foo
+2025/03/28 09:12:04 INFO Testing user=root pubkey="ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINUYPLDQQxX1GGXQZR3Pj/Xy7ckadVdiG9R61bVlq4oP"
+2025/03/28 09:12:04 INFO Testing user=foo pubkey="ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINUYPLDQQxX1GGXQZR3Pj/Xy7ckadVdiG9R61bVlq4oP"
+2025/03/28 09:12:04 INFO Testing user=root pubkey="ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFKF5kDRXv4SWBYrk36i4iLRl2BZG3ESMQjMLsUpiHz5"
+2025/03/28 09:12:05 INFO Server accepted user/key user=root pubkey="ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFKF5kDRXv4SWBYrk36i4iLRl2BZG3ESMQjMLsUpiHz5"
+2025/03/28 09:12:05 INFO Testing user=foo pubkey="ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFKF5kDRXv4SWBYrk36i4iLRl2BZG3ESMQjMLsUpiHz5"
 ```

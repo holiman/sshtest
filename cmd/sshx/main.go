@@ -1,3 +1,6 @@
+// Copyright 2025 Martin Holst Swende. All rights reserved.
+// Use of this source code is governed by MIT license.
+
 package main
 
 import (
@@ -17,8 +20,8 @@ import (
 
 func main() {
 	cmd := &cli.Command{
-		Name:   "boom",
-		Usage:  "make an explosive entrance",
+		Name:   "sshtest",
+		Usage:  "Test a pubkey against an ssh server",
 		Action: testSsh,
 		Flags: []cli.Flag{
 			&cli.StringFlag{
@@ -34,9 +37,13 @@ func main() {
 			},
 			&cli.StringFlag{
 				Name:     "keyfile",
-				Value:    "",
 				Usage:    "File containing public keys to attempt",
 				Required: true,
+			},
+			&cli.StringSliceFlag{
+				Name:  "user",
+				Value: []string{"root", "devops", "debian", "ubuntu", "admin"},
+				Usage: "Usernames to attempt",
 			},
 		},
 	}
@@ -48,15 +55,12 @@ func main() {
 
 func testSsh(ctx context.Context, cmd *cli.Command) error {
 	var (
-		user    = "root"
-		host    = cmd.String("host")
-		port    = cmd.String("port")
-		keyFile *os.File
-		err     error
-		addr    = net.JoinHostPort(host, port)
+		usernames = cmd.StringSlice("user")
+		addr      = net.JoinHostPort(cmd.String("host"), cmd.String("port"))
 	)
 	// Open the file containing pubkeys
-	if keyFile, err = os.Open(cmd.String("keyfile")); err != nil {
+	keyFile, err := os.Open(cmd.String("keyfile"))
+	if err != nil {
 		return err
 	}
 	defer keyFile.Close()
@@ -73,11 +77,13 @@ func testSsh(ctx context.Context, cmd *cli.Command) error {
 		if err != nil {
 			return err
 		}
-
-		doAttempt(addr, user, pubkey)
+		for _, user := range usernames {
+			if err := doAttempt(addr, user, pubkey); err != nil {
+				return err
+			}
+		}
 	}
-
-	return nil
+	return scanner.Err()
 }
 
 func doAttempt(addr string, user string, pubkey ssh2.PublicKey) error {
@@ -87,7 +93,7 @@ func doAttempt(addr string, user string, pubkey ssh2.PublicKey) error {
 		slog.Error("Failed to connect", "addr", addr, "err", err)
 		return err
 	}
-	slog.Info("TCP connected", "addr", addr)
+	slog.Debug("TCP connected", "addr", addr)
 	slog.Info("Testing", "user", user, "pubkey", fmt.Sprintf("%v %v", pubkey.Type(), base64.RawStdEncoding.EncodeToString(pubkey.Marshal())))
 	// Trigger handshake
 	ssh2.NewClientConn(conn, addr, &ssh2.ClientConfig{

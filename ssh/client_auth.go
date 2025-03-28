@@ -345,9 +345,10 @@ func (cb publicKeyCallback) auth(session []byte, user string, c packetConn, rand
 			}
 		}
 		if !ok {
+			slog.Debug("Server rejected user/key", "user", user, "pubkey", fmt.Sprintf("%v %v", algo, base64.RawStdEncoding.EncodeToString(pub.Marshal())))
 			continue
 		}
-		slog.Info("Server accepted key", "user", user, "pubkey", fmt.Sprintf("%v %v", algo, base64.RawStdEncoding.EncodeToString(pub.Marshal())))
+		slog.Info("Server accepted user/key", "user", user, "pubkey", fmt.Sprintf("%v %v", algo, base64.RawStdEncoding.EncodeToString(pub.Marshal())))
 		continue
 	}
 
@@ -403,7 +404,6 @@ func confirmKeyAck(key PublicKey, c packetConn) (bool, error) {
 			}
 			return true, nil
 		case msgUserAuthFailure:
-			slog.Info("The user/key was rejected by the server")
 			return false, nil
 		default:
 			return false, unexpectedMessageError(msgUserAuthPubKeyOk, packet[0])
